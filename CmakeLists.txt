@@ -1,0 +1,80 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(DCmcupivot
+    VERSION 0.0.0.1
+    LANGUAGES CXX
+    DESCRIPTION "DC MCU Pivot - A multi-task scheduling framework for microcontrollers"
+)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# ----------------------------------
+# Build Options
+# ----------------------------------
+option(DC_MCU_PIVOT_BUILD_TESTS "Build test cases" ON)
+option(DC_MCU_PIVOT_BUILD_EXAMPLES "Build examples" OFF)
+option(DC_MCU_PIVOT_INSTALL "Install library" ON)
+option(DC_MCU_PIVOT_INSTALL_DEPLOY "Install with deploying dependencies" OFF)
+option(DC_MCU_PIVOT_INSTALL_MSVC_RUNTIME "Install MSVC runtime" OFF)
+
+# ----------------------------------
+# CMake Settings
+# ----------------------------------
+if(MSVC)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /manifest:no")
+    set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /manifest:no")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /manifest:no")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
+
+    if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
+        set(CMAKE_DEBUG_POSTFIX "d")
+    endif()
+elseif(MINGW)
+    set(CMAKE_STATIC_LIBRARY_PREFIX "")
+    set(CMAKE_SHARED_LIBRARY_PREFIX "")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+endif()
+
+if(DC_MCU_PIVOT_INSTALL)
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
+endif()
+
+# ----------------------------------
+# Project Variables
+# ----------------------------------
+set(DC_MCU_PIVOT_VERSION ${PROJECT_VERSION})
+set(DC_MCU_PIVOT_INSTALL_NAME ${PROJECT_NAME})
+set(DC_MCU_PIVOT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+
+# ----------------------------------
+# Find basic dependencies
+# ----------------------------------
+find_package(qmsetup REQUIRED)
+find_package(etl CONFIG REQUIRED)
+
+qm_import(Filesystem)
+qm_init_directories()
+
+# ----------------------------------
+# Add source modules
+# ----------------------------------
+include("${DC_MCU_PIVOT_SOURCE_DIR}/cmake/BuildAPI.cmake")
+add_subdirectory(API)
+add_subdirectory(main)
+add_subdirectory(RTOS)
+
+
+# ----------------------------------
+# Compile configuration
+# ----------------------------------
+add_compile_options(
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
+    $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
+    -Wall
+    -Wextra
+)

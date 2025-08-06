@@ -1,0 +1,7 @@
+DCmcupivot_add_library(API INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
+    INTERFACE_SOURCES "*.h"
+)
+
+target_include_directories(API INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)

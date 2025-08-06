@@ -1,0 +1,14 @@
+file(GLOB_RECURSE _src "*.c" "*.cpp")
+file(GLOB_RECURSE _src_h "*.h")
+
+DCmcupivot_add_library(main SOURCES ${_src}
+    LINKS etl::etl API
+    INCLUDE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+DCmcupivot_add_executable(test_main
+    SOURCES "test.cpp"
+    LINKS main
+)
