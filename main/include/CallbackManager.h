@@ -15,6 +15,7 @@ private:
 
 public:
 	Uint8Callback() : callback_ptr(nullptr) {}
+	Uint8Callback(void(*func)(uint8_t)) : callback_ptr(func) {}
 
 	Uint8Callback& operator=(void(*func)(uint8_t)) {
 		set(func);
@@ -46,6 +47,7 @@ private:
 	void(*callback_ptr)();
 public:
 	ProcessCallback() : callback_ptr(nullptr) {}
+	ProcessCallback(void(*func)()) : callback_ptr(func) {}
 
 	ProcessCallback& operator=(void(*func)()) {
 		set(func);
@@ -76,6 +78,7 @@ private:
 	void(*callback_ptr)(void(*)());
 public:
 	TaskAgrntCallback() : callback_ptr(nullptr) {}
+	TaskAgrntCallback(void(*func)(void(*)())) : callback_ptr(func) {}
 
 	TaskAgrntCallback& operator=(void(*func)(void(*)())) {
 		set(func);

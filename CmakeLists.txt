@@ -78,3 +78,88 @@ add_compile_options(
     -Wall
     -Wextra
 )
+
+# ----------------------------------
+# Release Mode Optimization
+# ----------------------------------
+# 添加优化级别选项
+option(DC_MCU_PIVOT_OPTIMIZE_SIZE "Optimize for size instead of speed" ON)
+
+# 针对不同编译器和平台设置优化选项
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+    message(STATUS "Configuring for Release build with optimizations")
+    
+    if(MSVC)
+        # MSVC 优化选项
+        add_compile_options(
+            /O2     # 最大化速度优化
+            /Ob2    # 激进的内联展开
+            /GF     # 消除重复字符串
+            /Gy     # 函数级链接
+        )
+        
+        if(DC_MCU_PIVOT_OPTIMIZE_SIZE)
+            add_compile_options(/Os)  # 优先优化代码大小
+        else()
+            add_compile_options(/Ot)  # 优先优化执行速度
+        endif()
+        
+        # 链接时优化(LTO)
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
+            include(CheckIPOSupported)
+            check_ipo_supported(RESULT ipo_supported OUTPUT output)
+            if(ipo_supported)
+                set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+                message(STATUS "Enabling Link Time Optimization (LTO)")
+            endif()
+        else()
+            add_compile_options(/GL)
+            add_link_options(/LTCG)
+        endif()
+        
+    else()
+        # GCC/Clang 优化选项
+        if(DC_MCU_PIVOT_OPTIMIZE_SIZE)
+            add_compile_options(-Os)  # 优化代码大小
+        else()
+            add_compile_options(-O3)  # 最大化优化级别
+        endif()
+        
+        # 通用优化选项
+        add_compile_options(
+            -ffunction-sections  # 将每个函数放在单独段中
+            -fdata-sections      # 将每个数据放在单独段中
+            -flto               # 链接时优化
+        )
+        
+        # 链接选项
+        add_link_options(
+            -Wl,--gc-sections   # 移除未使用代码段
+            -flto
+        )
+        
+        # 特定于ARM的优化
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm")
+            add_compile_options(
+                -mcpu=cortex-m4  # 根据实际MCU调整
+                -mfloat-abi=hard
+                -mfpu=fpv4-sp-d16
+            )
+        endif()
+    endif()
+    
+    # 额外优化选项
+    add_compile_options(
+        -fomit-frame-pointer  # 省略帧指针
+        -fno-stack-protector   # 禁用栈保护
+    )
+    
+    # 移除调试符号
+    if(NOT DC_MCU_PIVOT_DEBUG_SYMBOLS)
+        if(MSVC)
+            add_compile_options(/Z7)  # 调试信息嵌入在OBJ中
+        else()
+            add_compile_options(-g0)  # 完全移除调试信息
+        endif()
+    endif()
+endif()

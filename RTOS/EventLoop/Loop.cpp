@@ -3,14 +3,14 @@
 namespace RTOS{
 static TaskManager g_task_manager;
 
-void (*TaskManager::_setupContext)(void*, void*) = nullptr;
-void (*TaskManager::_switchContext)(void*, const void*) = nullptr;
+void (*TaskManager::_setupContext)(UserTask::Context* ctx, void* stack_top, void* entry_point) = nullptr;
+void (*TaskManager::_switchContext)(void** from_ctx_sp_ptr, const void* to_ctx) = nullptr;
 
-inline void TaskManager::setSetupContext(void(*func)(void* stack_top, void* entry_point)){
+void RTOS::TaskManager::setSetupContext(void (*func)(UserTask::Context* ctx, void* stack_top, void* entry_point)) {
 	_setupContext = func;
 }
 
-void TaskManager::setSwitchContext(void(*func)(void* from_ctx, const void* to_ctx)){
+void TaskManager::setSwitchContext(void(*func)(void** from_ctx_sp_ptr, const void* to_ctx)){
 	_switchContext = func;
 }
 
@@ -18,29 +18,34 @@ TaskManager* TaskManager::getInstance(){
 	return &g_task_manager;
 }
 
-bool TaskManager::addTask(Task* task){
-	if (_taskCount >= MAX_TASKS || !task) return false;
+bool TaskManager::addTask(UserTask&& task) {
+	if (_taskCount >= MAX_TASKS) return false;
 
 	InterruptLock lock;
-	_taskPool[_taskCount] = task;
-	_taskCount++;
+	_userTaskPool.emplace_back(std::move(task));
+	_userTaskPool.back().start();
 
-	task->start(); // 触发任务自身的初始化
+	_taskCount++;
 	return true;
 }
 
+bool TaskManager::addTask(ProcessCallback&& task) {
+	return addTask(UserTask(task));
+}
+
 bool TaskManager::removeTask(size_t task_id){
-	if (_taskCount >= MAX_TASKS || task_id >= _taskCount) return false;
+	if (task_id >= _taskCount) return false;
 
 	InterruptLock lock;
-	_taskPool.erase(_taskPool.begin() + task_id);
+	_userTaskPool.erase(_userTaskPool.begin() + task_id);
 	_taskCount--;
 
 	return true;
 }
-
+#include <Windows.h>
 void TaskManager::run(){
 	if (_taskCount == 0) return;
+	runStatus = RunStatus::Running;
 
 	while (runStatus == RunStatus::Running) {
 		checkSleepingTasks();
@@ -49,31 +54,9 @@ void TaskManager::run(){
 		if (next_task_idx < _taskCount) {
 			_nowTaskID = next_task_idx;
 
-			InterruptLock lock;
-			Task* current = _taskPool[_nowTaskID];
-			lock.unlock();
+			UserTask& current = _userTaskPool[_nowTaskID];
 
-			uint64_t start_time = Timer::getCurrentTime_us();
-
-			if (dynamic_cast<UserTask*>(current)) {
-				_switchContext(&_schedulerContext, &current->getContext());
-			}
-			else if (dynamic_cast<KernelTask*>(current)) {
-				current->run();
-			}
-
-			uint64_t end_time = Timer::getCurrentTime_us();
-			uint64_t execution_time = end_time - start_time;
-
-			// 更新统计数据
-			current->_last_run_time_us = execution_time;
-			if (current->_average_run_time_us == 0) {
-				current->_average_run_time_us = execution_time;
-			}
-			else {
-				// 使用移动平均法，避免溢出并平滑数据
-				current->_average_run_time_us = (current->_average_run_time_us * 7 + execution_time) / 8;
-			}
+			_switchContext(reinterpret_cast<void**>(&_schedulerContext.stack_top), &current.getContext());
 		}
 		else {
 			// 没有就绪任务，可以进入低功耗模式
@@ -82,66 +65,64 @@ void TaskManager::run(){
 	}
 }
 
-void TaskManager::setupContext(Task::Context* ctx, void* stack_top){
+void RTOS::TaskManager::setupContext(UserTask::Context* ctx, void* stack_top) {
 	if (_setupContext) {
-		_setupContext(stack_top, reinterpret_cast<void*>(task_entry_trampoline));
+		_setupContext(ctx, stack_top, (void*)task_entry_trampoline);
 	}
 }
 
 void TaskManager::yield(bool is_sleeping, uint32_t wake_up_time){
 	Task* current = getCurrentTask();
-	if (!current) return;
+	if (runStatus != RunStatus::Running || !current) return;
 
 	if (is_sleeping) {
 		current->_state = Task::State::SLEEPING;
-		current->_wake_up_time_us = wake_up_time * 1000;
+		current->_wake_up_time_ms = timer.getCurrentTime_ms() + static_cast<uint64_t>(wake_up_time);
 	}
 
-	// 切换回调度器
-	_switchContext(&current->getContext(), &_schedulerContext);
+	if (static_cast<UserTask*>(current)) {
+		auto* task = static_cast<UserTask*>(current);
+		_switchContext(reinterpret_cast<void**>(&task->getContext().stack_top), &_schedulerContext);
+	}
 }
 
-Task* TaskManager::getCurrentTask(){
-	return (_nowTaskID < _taskCount) ? _taskPool[_nowTaskID] : nullptr;
+UserTask* TaskManager::getCurrentTask(){
+	return (_nowTaskID < _taskCount) ? &_userTaskPool[_nowTaskID] : nullptr;
 }
 
 void TaskManager::checkSleepingTasks(){
-	uint64_t now = Timer::getCurrentTime_us();
+	uint64_t now = timer.getCurrentTime_ms();
 	for (size_t i = 0; i < _taskCount; ++i) {
-		InterruptLock lock;
-		if (_taskPool[i]->_state == Task::State::SLEEPING && now >= _taskPool[i]->_wake_up_time_us) {
-			_taskPool[i]->_state = Task::State::READY;
+		if (_userTaskPool[i]._state == Task::State::SLEEPING && now >= _userTaskPool[i]._wake_up_time_ms) {
+			InterruptLock lock;
+			_userTaskPool[i]._state = Task::State::READY;
 		}
 	}
 }
 
 size_t TaskManager::findNextReadyTask(){
 	for (size_t i = 0; i < _taskCount; ++i) {
-		InterruptLock lock;
 		size_t idx = (_last_scheduled_id + 1 + i) % _taskCount;
-		if (_taskPool[idx]->_state == Task::State::READY) {
+		if (_userTaskPool[idx]._state == Task::State::READY) {
 			_last_scheduled_id = idx;
 			return idx;
 		}
 	}
-	return SIZE_MAX; // 没有找到就绪任务
+	return SIZE_MAX;
 }
 
 void TaskManager::task_entry_trampoline() {
-	Task* current = g_task_manager.getCurrentTask();
-	if (current) {
-		current->_task_func();
-	}
-	current->_state = Task::State::FINISHED;
+	UserTask& current = *g_task_manager.getCurrentTask();
+	current.run(); // 执行用户任务
+	current._state = Task::State::FINISHED;
 
+	// 任务结束，永久休眠并让出CPU
 	g_task_manager.yield(true, UINT32_MAX);
 }
 
 void UserTask::start(){
-	// 计算栈顶
-	void* stack_top = _context.stack_data + TASK_STACK_SIZE;
-	// 请求 TaskManager 帮忙设置上下文
-	g_task_manager.setupContext(&_context, stack_top);
+	void* stack_top_addr = _context.stack_data + TASK_STACK_SIZE;
+	g_task_manager.setupContext(&_context, stack_top_addr);
 
 	_state = State::READY;
 }

@@ -19,8 +19,7 @@ namespace RTOS {
 			return (static_cast<uint64_t>(overflow_count) << 32) | us;
 		}
 
-		// 这个函数保持不变，由用户的定时器中断调用
-		static void timer(uint32_t us) noexcept {
+		static void tick(uint32_t us) noexcept {
 			uint32_t old_us = Timer_us;
 			Timer_us += us;
 			if (Timer_us < old_us) { // 检测溢出
