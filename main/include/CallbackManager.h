@@ -1,10 +1,9 @@
 #pragma once
 #include "Config.h"
-
+#include <cstdint>
 class BaseCallback {
 public:
 	virtual ~BaseCallback() = default;
-
 	virtual bool has() const = 0;
 };
 

@@ -1,14 +1,19 @@
 #pragma once
 #include "Config.h"
-
-#include "Global.h"
 #include "Task.h"
 
-
 #include <cstdint>
+#include <etl/vector.h>
 
 namespace RTOS {
-	void sleep(uint32_t ms);
+	enum class RunStatus {
+		Stop,
+		Running,
+		Ready,
+		Error
+	};
+
+	static RunStatus runStatus = RunStatus::Stop;
 
 	class TaskManager {
 	public:
@@ -53,7 +58,7 @@ namespace RTOS {
 		size_t _nowTaskID = 0;
 		size_t _last_scheduled_id = -1;
 		Context _schedulerContext;
-		Timer timer;
+		Timer __timer;
 	};
 
 	class InterruptLock {
@@ -77,7 +82,7 @@ namespace RTOS {
 
 	static void sleep(uint32_t ms) {
 		TaskManager::getInstance()->yield(true, ms);
-	}
+	};
 
 	// 这个函数将由定时器中断触发
 	// 用户会把这个函数放在与传入参数一致的定时器中断处理函数中

@@ -1,4 +1,5 @@
-#include "Loop.h"
+#include "TaskManager.h"
+#include "API.h"
 
 namespace RTOS{
 static TaskManager g_task_manager;
@@ -42,7 +43,7 @@ bool TaskManager::removeTask(size_t task_id){
 
 	return true;
 }
-#include <Windows.h>
+
 void TaskManager::run(){
 	if (_taskCount == 0) return;
 	runStatus = RunStatus::Running;
@@ -77,7 +78,7 @@ void TaskManager::yield(bool is_sleeping, uint32_t wake_up_time){
 
 	if (is_sleeping) {
 		current->_state = Task::State::SLEEPING;
-		current->_wake_up_time_ms = timer.getCurrentTime_ms() + static_cast<uint64_t>(wake_up_time);
+		current->_wake_up_time_ms = __timer.getCurrentTime_ms() + static_cast<uint64_t>(wake_up_time);
 	}
 
 	if (static_cast<UserTask*>(current)) {
@@ -91,7 +92,7 @@ UserTask* TaskManager::getCurrentTask(){
 }
 
 void TaskManager::checkSleepingTasks(){
-	uint64_t now = timer.getCurrentTime_ms();
+	uint64_t now = __timer.getCurrentTime_ms();
 	for (size_t i = 0; i < _taskCount; ++i) {
 		if (_userTaskPool[i]._state == Task::State::SLEEPING && now >= _userTaskPool[i]._wake_up_time_ms) {
 			InterruptLock lock;
@@ -127,4 +128,10 @@ void UserTask::start(){
 	_state = State::READY;
 }
 
+
+
+}
+
+void init() {
+	auto& i = *RTOS::TaskManager::getInstance();
 }

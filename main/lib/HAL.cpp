@@ -49,14 +49,14 @@ void SWD_CLK(void(*callback)(uint8_t)) {
 	setSWD_CLK = callback;
 }
 
-void SWI(void(*callback)(void(*)())) {
+void __SWI(void(*callback)(void(*)())) {
 	triggerSWI = callback;
 }
 
-void disableInterrupts(void(*callback)()) {
+void __disableInterrupts(void(*callback)()) {
 	OFF_Interrupts = callback;
 }
 
-void enableInterrupts(void(*callback)()) {
+void __enableInterrupts(void(*callback)()) {
 	ON_Interrupts = callback;
 } 

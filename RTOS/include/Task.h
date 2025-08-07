@@ -2,6 +2,8 @@
 #include "CallbackManager.h"
 #include "Timer.h"
 
+#include <cstdint>
+
 namespace RTOS {
 	class Task {
 	public:

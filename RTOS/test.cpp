@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-#include "Loop.h"
+#include "TaskManager.h"
 #include <test.h>
 //#include <Windows.h>
 //
@@ -64,6 +64,8 @@ void timeDrive() {
 }
 
 int main(int, char) {
+	init();
+
 	//ConvertThreadToFiber(nullptr);
 
 	// 开一个线程来模拟时间驱动

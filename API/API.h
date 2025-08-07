@@ -1,11 +1,9 @@
-// 硬件适配层
-// 调用方传入用于配置参数的函数指针
-// 框架依靠这些配置函数与硬件进行交互
-#include <cstdint>
-
 #ifndef API_H
 #define API_H
-extern"C"{
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include <stdint.h>
 
 //=========================================================
 // 引脚配置
@@ -61,28 +59,26 @@ void SWD_CLK(void(*callback)(uint8_t));
 // 软件中断回调
 // 框架需要软件中断时调用这个函数
 // 框架会注入一个 void foo() 来执行自定义过程
-void SWI(void(*callback)(void(*)()));
+void __SWI(void(*callback)(void(*)()));
 
 // 定时器
 // 把这个放到相应定时器中
 // @param uint32 us 定时器周期
-void timer(uint32_t us);
+void __timer(uint32_t us);
 
 // 看门狗回调
-void watchdog(void(*callback)(void));
-
-// 设置最大任务数量
-// @param uint32 num 最大任务数量
-void setMaxTaskNum(uint32_t num);
+void __watchdog(void(*callback)(void));
 
 // 报错回调
-void errorCallback(void(*callback)(const char*));
+void __errorCallback(void(*callback)(const char*));
 
 // 禁用中断
-void disableInterrupts(void(*callback)(void));
+void __disableInterrupts(void(*callback)(void));
 
 // 启用中断
-void enableInterrupts(void(*callback)(void));
+void __enableInterrupts(void(*callback)(void));
+
+void init();
 
 //=========================================================
 // 任务管理
@@ -93,6 +89,7 @@ void addTask(void(*task)());
 
 
 
-
+#ifdef __cplusplus
 }
+#endif
 #endif
