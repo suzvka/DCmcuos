@@ -1,83 +1,52 @@
 #pragma once
 #include <cstdint>
+#include <etl/vector.h>
 
-#include "Handle.h"
+#include "Config.h"
 
 namespace RTOS {
-	// 单例全局定时器
-	class GlobalTimer {
+	class MainTimer;
+	class Timer;
+	static etl::vector<Timer*, MAX_TIMERS> TimerTickList;
+	static uint32_t PoolTimerID = 0;
+
+	class BaseTimer {
+	protected: uint64_t num_us = 0;
 	public:
-		static uint64_t timing() noexcept {
-			uint32_t overflow_count;
-			uint32_t us;
+		void tick(uint64_t us);
+		uint64_t now() const;
 
-			OFF_Interrupts();
-			overflow_count = TimerOverflowCount;
-			us = Timer_us;
-			ON_Interrupts();
-
-			return (static_cast<uint64_t>(overflow_count) << 32) | us;
-		}
-
-		static void tick(uint32_t us) noexcept {
-			uint32_t old_us = Timer_us;
-			Timer_us += us;
-			if (Timer_us < old_us) { // 检测溢出
-				TimerOverflowCount++;
-			}
-		}
-
-	private:
-		GlobalTimer() = default;
-		GlobalTimer(const GlobalTimer&) = delete;
-		GlobalTimer& operator=(const GlobalTimer&) = delete;
-
-		static volatile uint32_t Timer_us;
-		static volatile uint32_t TimerOverflowCount;
+		void reset();
+		
+		uint32_t timer_id = 0;
 	};
 
-
-	// 主要用于提供两次方法调用的时间差
-	class Timer {
+	class MainTimer : public BaseTimer {
 	public:
-		Timer() noexcept {
-			reset();
-		}
-
-		static uint64_t getCurrentTime_us() noexcept {
-			return GlobalTimer::timing();
-		}
-
-		static uint64_t getCurrentTime_ms() noexcept {
-			constexpr uint64_t us_per_ms = 1000;
-			return getCurrentTime_us() / us_per_ms;
-		}
-
-		static double getCurrentTime_s() noexcept {
-			constexpr double us_per_s = 1000000.0;
-			return static_cast<double>(getCurrentTime_us()) / us_per_s;
-		}
-
-		// 重置计时器
-		void reset() noexcept {
-			StartTime_us = getCurrentTime_us();
-		}
-
-		[[nodiscard]] uint64_t timing_us() const noexcept {
-			return getCurrentTime_us() - StartTime_us;
-		}
-
-		[[nodiscard]] uint64_t timing_ms() const noexcept {
-			constexpr uint64_t us_per_ms = 1000;
-			return timing_us() / us_per_ms;
-		}
-
-		[[nodiscard]] double timing_s() const noexcept {
-			constexpr double us_per_s = 1000000.0;
-			return static_cast<double>(timing_us()) / us_per_s;
-		}
+		static MainTimer* getInstance();
+		static void tick(uint64_t us);
+		static void updataTimer();
 
 	private:
-		uint64_t StartTime_us;
+		MainTimer(){}
+		MainTimer(const MainTimer&) = delete;
+		MainTimer& operator=(const MainTimer&) = delete;
+
+		uint64_t last_tick_us = 0;
+	};
+
+	MainTimer& getMainTimer();
+	void updataTimer();
+
+	class Timer : public BaseTimer {
+	public: Timer(uint32_t us); Timer(); ~Timer();
+		[[nodiscard]] uint64_t now_us() const;
+		[[nodiscard]] uint64_t now_ms() const;
+		[[nodiscard]] double now_s() const;
+
+		void tick();
+	private:
+		uint32_t cycle_us = 0;
+
 	};
 }

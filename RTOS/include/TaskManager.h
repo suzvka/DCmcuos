@@ -1,9 +1,10 @@
 #pragma once
-#include "Config.h"
-#include "Task.h"
-
 #include <cstdint>
 #include <etl/vector.h>
+
+#include "Config.h"
+#include "Handle.h"
+#include "Task.h"
 
 namespace RTOS {
 	enum class RunStatus {
@@ -83,10 +84,4 @@ namespace RTOS {
 	static void sleep(uint32_t ms) {
 		TaskManager::getInstance()->yield(true, ms);
 	};
-
-	// 这个函数将由定时器中断触发
-	// 用户会把这个函数放在与传入参数一致的定时器中断处理函数中
-	static void tick(uint32_t us) {
-		GlobalTimer::tick(us);
-	}
 }

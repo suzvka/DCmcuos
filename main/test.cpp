@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "API.h"
+#include "HAL.h"
 
 
 static void test(uint8_t a){
@@ -14,7 +15,7 @@ static void test(uint8_t a){
 
 int main(int, char) {
 
-	inputPU_Pin(test);
+	__inputPU_Pin(test);
 
 
 

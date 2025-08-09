@@ -15,13 +15,14 @@ namespace RTOS {
 		};
 
 		Task(ProcessCallback task_func) : _task_func(task_func) {}
+		Task(void(*task_func)()) : _task_func(task_func) {}
 		virtual ~Task() = default;
 
 		virtual void start() = 0;
 		virtual void run() = 0;
 
 		State _state = State::UNINITIALIZED;
-		uint32_t _wake_up_time_ms = 0;
+		uint32_t active_cycle = 0;
 
 		ProcessCallback _task_func;
 	};
@@ -30,9 +31,13 @@ namespace RTOS {
 	class UserTask : public Task {
 	public:
 		UserTask(ProcessCallback task_func) : Task(task_func) {
-			for (auto& it : _context.stack_data) {
-				it = 0xa5;
+			for (int i = 0; i < TASK_STACK_SIZE - 16; ++i) {
+				_context.stack_data[i] = 0xa5;
 			}
+			for (int i = TASK_STACK_SIZE - 16; i < TASK_STACK_SIZE; ++i) {
+				_context.stack_data[i] = 0x5a;
+			}
+
 			_context.stack_top = _context.stack_data + TASK_STACK_SIZE;
 		}
 
@@ -50,13 +55,22 @@ namespace RTOS {
 		Context& getContext() { return _context; }
 
 		uint64_t getMaxStackDepth() const {
-			uint64_t out = 0;
-			for (int i = TASK_STACK_SIZE - 1; i >= 0; --i) {
+			uint64_t out = TASK_STACK_SIZE;
+
+			for (int i = 0; i < TASK_STACK_SIZE - 16; ++i) {
 				if (_context.stack_data[i] != 0xa5) {
-					out = static_cast<uint8_t>(TASK_STACK_SIZE - i);
+					out = TASK_STACK_SIZE - i;
 					break;
 				}
 			}
+
+			for (int i = TASK_STACK_SIZE - 16; i < TASK_STACK_SIZE; ++i) {
+				if (_context.stack_data[i] != 0x5a) {
+					out = TASK_STACK_SIZE - i - 16;
+					break;
+				}
+			}
+			
 			return out;
 		}
 

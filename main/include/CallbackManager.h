@@ -1,6 +1,8 @@
 #pragma once
 #include "Config.h"
 #include <cstdint>
+#include <type_traits>
+
 class BaseCallback {
 public:
 	virtual ~BaseCallback() = default;
@@ -43,33 +45,34 @@ public:
 
 class ProcessCallback : public BaseCallback {
 private:
-	void(*callback_ptr)();
+    void(*callback_ptr)();
 public:
-	ProcessCallback() : callback_ptr(nullptr) {}
-	ProcessCallback(void(*func)()) : callback_ptr(func) {}
+    ProcessCallback() : callback_ptr(nullptr) {}
+    ProcessCallback(void(*func)()) : callback_ptr(func) {}
+	
 
-	ProcessCallback& operator=(void(*func)()) {
-		set(func);
-		return *this;
-	}
+    ProcessCallback& operator=(void(*func)()) {
+        set(func);
+        return *this;
+    }
 
-	void operator()() {
-		if (callback_ptr) {
-			callback_ptr();
-		}
-	}
+    void operator()() {
+        if (callback_ptr) {
+            callback_ptr();
+        }
+    }
 
-	void set(void(*func)()) {
-		callback_ptr = func;
-	}
+    void set(void(*func)()) {
+        callback_ptr = func;
+    }
 
-	bool has() const {
-		return callback_ptr != nullptr;
-	}
+    bool has() const {
+        return callback_ptr != nullptr;
+    }
 
-	void(*get_callback_ptr() const)() {
-		return callback_ptr;
-	}
+    void(*get_callback_ptr() const)() {
+        return callback_ptr;
+    }
 };
 
 class TaskAgrntCallback : public BaseCallback {

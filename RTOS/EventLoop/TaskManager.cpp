@@ -57,7 +57,11 @@ void TaskManager::run(){
 
 			UserTask& current = _userTaskPool[_nowTaskID];
 
-			_switchContext(reinterpret_cast<void**>(&_schedulerContext.stack_top), &current.getContext());
+			InterruptLock lock;
+			_switchContext(
+				reinterpret_cast<void**>(&_schedulerContext.stack_top), 
+				&current.getContext()
+			);
 		}
 		else {
 			// 没有就绪任务，可以进入低功耗模式
@@ -68,7 +72,12 @@ void TaskManager::run(){
 
 void RTOS::TaskManager::setupContext(UserTask::Context* ctx, void* stack_top) {
 	if (_setupContext) {
-		_setupContext(ctx, stack_top, (void*)task_entry_trampoline);
+		InterruptLock lock;
+		_setupContext(
+			ctx, 
+			stack_top, 
+			(void*)task_entry_trampoline
+		);
 	}
 }
 
@@ -78,12 +87,16 @@ void TaskManager::yield(bool is_sleeping, uint32_t wake_up_time){
 
 	if (is_sleeping) {
 		current->_state = Task::State::SLEEPING;
-		current->_wake_up_time_ms = __timer.getCurrentTime_ms() + static_cast<uint64_t>(wake_up_time);
+		current->active_cycle = __timer.now_ms() + wake_up_time;
 	}
 
 	if (static_cast<UserTask*>(current)) {
 		auto* task = static_cast<UserTask*>(current);
-		_switchContext(reinterpret_cast<void**>(&task->getContext().stack_top), &_schedulerContext);
+		InterruptLock lock;
+		_switchContext(
+			reinterpret_cast<void**>(&task->getContext().stack_top), 
+			&_schedulerContext
+		);
 	}
 }
 
@@ -92,13 +105,15 @@ UserTask* TaskManager::getCurrentTask(){
 }
 
 void TaskManager::checkSleepingTasks(){
-	uint64_t now = __timer.getCurrentTime_ms();
+	uint64_t now = __timer.now_ms();
 	for (size_t i = 0; i < _taskCount; ++i) {
-		if (_userTaskPool[i]._state == Task::State::SLEEPING && now >= _userTaskPool[i]._wake_up_time_ms) {
-			InterruptLock lock;
-			_userTaskPool[i]._state = Task::State::READY;
+		auto& task = _userTaskPool[i];
+		if (task._state == Task::State::SLEEPING) {
+			if (now >= task.active_cycle) {
+				task._state = Task::State::READY;
+			}
 		}
-	}
+	}	
 }
 
 size_t TaskManager::findNextReadyTask(){
@@ -114,10 +129,10 @@ size_t TaskManager::findNextReadyTask(){
 
 void TaskManager::task_entry_trampoline() {
 	UserTask& current = *g_task_manager.getCurrentTask();
-	current.run(); // 执行用户任务
+	current.run();
 	current._state = Task::State::FINISHED;
 
-	// 任务结束，永久休眠并让出CPU
+
 	g_task_manager.yield(true, UINT32_MAX);
 }
 
@@ -128,10 +143,5 @@ void UserTask::start(){
 	_state = State::READY;
 }
 
-
-
 }
 
-void init() {
-	auto& i = *RTOS::TaskManager::getInstance();
-}
