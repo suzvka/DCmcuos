@@ -52,3 +52,7 @@ void __disableInterrupts(void(*callback)()) {
 void __enableInterrupts(void(*callback)()) {
 	ON_Interrupts = callback;
 } 
+
+void __time(uint32_t(*callback)(void)) {
+	getTime = callback;
+}

@@ -7,28 +7,30 @@
 #include "Task.h"
 
 namespace RTOS {
-	enum class RunStatus {
+	enum class RunStatus : uint8_t {
 		Stop,
 		Running,
 		Ready,
 		Error
 	};
 
-	static RunStatus runStatus = RunStatus::Stop;
+	extern RunStatus runStatus;
 
 	class TaskManager {
 	public:
 		static TaskManager* getInstance();
 
+		static bool checkInit();
+
 		bool addTask(UserTask&& task);
+
+		bool addTask(KernelTask&& task);
 
 		bool addTask(ProcessCallback&& task);
 
 		bool removeTask(size_t task_id);
 
 		void run();
-
-		void setupContext(UserTask::Context* ctx, void* stack_top);
 
 		void yield(bool is_sleeping, uint32_t wake_up_time = 0);
 
@@ -46,7 +48,15 @@ namespace RTOS {
 
 		void checkSleepingTasks();
 
-		size_t findNextReadyTask();
+		void initKernelTasks();
+
+		void runKernelTasks();
+
+		void setupContext(UserTask::Context* ctx, void* stack_top);
+
+		void initUserTasks();
+
+		uint64_t findNextReadyTask();
 
 		static void task_entry_trampoline();
 
@@ -54,12 +64,13 @@ namespace RTOS {
 		static void (*_switchContext)(void** from_ctx_sp_ptr, const void* to_ctx);
 
 		etl::vector<UserTask, MAX_TASKS> _userTaskPool;
+		etl::vector<KernelTask, 4> _kernrlTaskPool;
 
-		size_t _taskCount = 0;
-		size_t _nowTaskID = 0;
-		size_t _last_scheduled_id = -1;
+		uint64_t _taskCount = 0;
+		uint64_t _nowTaskID = 0;
+		uint64_t _last_scheduled_id = 0;
 		Context _schedulerContext;
-		Timer __timer;
+		Timer _timer;
 	};
 
 	class InterruptLock {

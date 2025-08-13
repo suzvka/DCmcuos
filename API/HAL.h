@@ -69,10 +69,15 @@ void __I2C_SCL(void(*callback)(uint8_t));
 // 框架会注入一个 void foo() 来执行自定义过程
 void __SWI(void(*callback)(void(*)()));
 
-// 定时器
-// 把这个放到相应定时器中
+// 自动周期定时器
+// 把这个放到相应定时器中断里
 // @param uint32 us 定时器周期
-void __timer(uint32_t us);
+void __tick(uint32_t us);
+
+// 手动递增定时器
+// 获取两次调用的间隔
+// @return uint32_t 间隔 us
+void __time(uint32_t(*callback)(void));
 
 // 看门狗回调
 void __watchdog(void(*callback)(void));

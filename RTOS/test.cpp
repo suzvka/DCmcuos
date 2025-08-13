@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 
+#include "HAL.h"
+#include "API.h"
 #include "TaskManager.h"
 #include <test.h>
 #include <Windows.h>
@@ -23,60 +25,49 @@ void simulated_switch_context(void** from_ctx_sp_ptr, const void* to_ctx) {
 
 void testTask_A() {
 	RTOS::Timer timetest;
-	while (true) {
+
+		std::cout << "任务 A 开始" << std::endl;
 		RTOS::sleep(1000);
 		std::cout << "执行时间 A ：" << timetest.now_ms() << std::endl;
 		timetest.reset();
-	}
+
 }
 
 void testTask_B() {
 	RTOS::Timer timetest;
-	while (true) {
+
+		std::cout << "任务 B 开始" << std::endl;
 		RTOS::sleep(251);
 		std::cout << "执行时间 B ：" << timetest.now_ms() << std::endl;
 		timetest.reset();
-	}
+
 }
 
 void testTask_C() {
 	RTOS::Timer timetest;
-	while (true) {
+
 		RTOS::sleep(200);
 		timetest.reset();
-	}
+
 }
 
-void timeDrive() {
-	auto last_time_point = std::chrono::high_resolution_clock::now();
+uint32_t last_us = 0;
 
-	while (true) {
-		auto current_time_point = std::chrono::high_resolution_clock::now();
-		auto duration = current_time_point - last_time_point;
-
-		uint64_t elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
-
-		if (elapsed_us > 0) {
-			RTOS::getMainTimer().tick(elapsed_us);
-
-			RTOS::updataTimer();
-
-			last_time_point = current_time_point;
-		}
-
-		Sleep(1);
-	}
+uint32_t _getTime() {
+	uint32_t now_us = static_cast<uint32_t>(
+		std::chrono::duration_cast<std::chrono::microseconds>(
+			std::chrono::high_resolution_clock::now().time_since_epoch()
+		).count()
+		);
+	uint32_t out = now_us - last_us;
+	last_us = now_us;
+	return out;
 }
 
-int main(int, char) {
-
-	ConvertThreadToFiber(nullptr);
-
-	// 开一个线程来模拟时间驱动
-	std::thread timeDriveThread(timeDrive);
-	timeDriveThread.detach();
-
+int main(int, char) { ConvertThreadToFiber(nullptr);
 	auto& testManager = *RTOS::TaskManager::getInstance();
+
+	__time(_getTime);
 
 	testManager.setSetupContext(simulated_setup_context);
 	testManager.setSwitchContext(simulated_switch_context);

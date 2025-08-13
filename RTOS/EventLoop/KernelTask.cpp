@@ -1,12 +1,12 @@
 #include "KernelTask.h"
+#include "Timer.h"
+#include "Handle.h"
 
 namespace RTOS {
 	TimerUpdata::TimerUpdata() : KernelTask(ProcessCallback([]() {
-		for (auto& timer : TimerTickList) {
-			timer->tick();
-		}
+		getMainTimer().tick(getTime());
+		updataTimer();
 	})) {}
-
 
 
 }

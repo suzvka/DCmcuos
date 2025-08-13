@@ -1,11 +1,40 @@
 #include "TaskManager.h"
 #include "API.h"
+#include "KernelTask.h"
 
 namespace RTOS{
-static TaskManager g_task_manager;
-
 void (*TaskManager::_setupContext)(UserTask::Context* ctx, void* stack_top, void* entry_point) = nullptr;
 void (*TaskManager::_switchContext)(void** from_ctx_sp_ptr, const void* to_ctx) = nullptr;
+RunStatus runStatus = RunStatus::Stop;
+
+void TaskManager::run() {
+	runStatus = RunStatus::Running;
+
+	initKernelTasks();
+	initUserTasks();
+
+	while (runStatus == RunStatus::Running) {
+		checkSleepingTasks();
+		runKernelTasks();
+
+		size_t next_task_idx = findNextReadyTask();
+		if (next_task_idx < _taskCount) {
+			_nowTaskID = next_task_idx;
+
+			UserTask& current = _userTaskPool[_nowTaskID];
+
+			InterruptLock lock;
+			_switchContext(
+				reinterpret_cast<void**>(&_schedulerContext.stack_top),
+				&current.getContext()
+			);
+		}
+		else {
+			// 没有就绪任务，可以进入低功耗模式
+			// WFI(); // 例如：等待中断
+		}
+	}
+}
 
 void RTOS::TaskManager::setSetupContext(void (*func)(UserTask::Context* ctx, void* stack_top, void* entry_point)) {
 	_setupContext = func;
@@ -16,17 +45,38 @@ void TaskManager::setSwitchContext(void(*func)(void** from_ctx_sp_ptr, const voi
 }
 
 TaskManager* TaskManager::getInstance(){
+	static TaskManager g_task_manager;
 	return &g_task_manager;
+}
+
+bool TaskManager::checkInit(){
+	return 
+		(_setupContext != nullptr) && 
+		(_switchContext != nullptr) &&
+		(OFF_Interrupts.has()) &&
+		(ON_Interrupts.has())
+		;
 }
 
 bool TaskManager::addTask(UserTask&& task) {
 	if (_taskCount >= MAX_TASKS) return false;
-
 	InterruptLock lock;
 	_userTaskPool.emplace_back(std::move(task));
-	_userTaskPool.back().start();
+	auto& t = _userTaskPool.back();
+	t.start();
+
+	void* stack_top_addr = t._context.stack_data + TASK_STACK_SIZE;
+	setupContext(&t._context, stack_top_addr);
 
 	_taskCount++;
+	return true;
+}
+
+bool TaskManager::addTask(KernelTask&& task){
+	InterruptLock lock;
+	_kernrlTaskPool.emplace_back(std::move(task));
+	_kernrlTaskPool.back().start();
+
 	return true;
 }
 
@@ -44,32 +94,6 @@ bool TaskManager::removeTask(size_t task_id){
 	return true;
 }
 
-void TaskManager::run(){
-	if (_taskCount == 0) return;
-	runStatus = RunStatus::Running;
-
-	while (runStatus == RunStatus::Running) {
-		checkSleepingTasks();
-
-		size_t next_task_idx = findNextReadyTask();
-		if (next_task_idx < _taskCount) {
-			_nowTaskID = next_task_idx;
-
-			UserTask& current = _userTaskPool[_nowTaskID];
-
-			InterruptLock lock;
-			_switchContext(
-				reinterpret_cast<void**>(&_schedulerContext.stack_top), 
-				&current.getContext()
-			);
-		}
-		else {
-			// 没有就绪任务，可以进入低功耗模式
-			// WFI(); // 例如：等待中断
-		}
-	}
-}
-
 void RTOS::TaskManager::setupContext(UserTask::Context* ctx, void* stack_top) {
 	if (_setupContext) {
 		InterruptLock lock;
@@ -81,23 +105,45 @@ void RTOS::TaskManager::setupContext(UserTask::Context* ctx, void* stack_top) {
 	}
 }
 
+void TaskManager::initUserTasks() {
+	for (auto& task : _userTaskPool) {
+		if (!_setupContext) continue;
+		if (task.getContext().stack_top == nullptr) {
+			void* stack_top_addr = task._context.stack_data + TASK_STACK_SIZE;
+			setupContext(&task._context, stack_top_addr);
+		}
+	}
+}
+
+void TaskManager::task_entry_trampoline() {
+    while (runStatus == RunStatus::Running) {
+        UserTask& current = *getInstance()->getCurrentTask();
+
+        current.run();
+
+        current._state = TaskBase::State::READY;
+
+        getInstance()->yield(false);
+    }
+}
+
 void TaskManager::yield(bool is_sleeping, uint32_t wake_up_time){
-	Task* current = getCurrentTask();
+	TaskBase* current = getCurrentTask();
 	if (runStatus != RunStatus::Running || !current) return;
 
 	if (is_sleeping) {
-		current->_state = Task::State::SLEEPING;
-		current->active_cycle = __timer.now_ms() + wake_up_time;
+		current->_state = TaskBase::State::SLEEPING;
+		current->active_ms = _timer.now_ms() + wake_up_time;
 	}
 
-	if (static_cast<UserTask*>(current)) {
-		auto* task = static_cast<UserTask*>(current);
-		InterruptLock lock;
-		_switchContext(
-			reinterpret_cast<void**>(&task->getContext().stack_top), 
-			&_schedulerContext
-		);
-	}
+    auto* task = static_cast<UserTask*>(current);
+    {
+        InterruptLock lock;
+        _switchContext(
+            reinterpret_cast<void**>(&task->getContext().stack_top),
+            &_schedulerContext
+        );
+    }
 }
 
 UserTask* TaskManager::getCurrentTask(){
@@ -105,42 +151,43 @@ UserTask* TaskManager::getCurrentTask(){
 }
 
 void TaskManager::checkSleepingTasks(){
-	uint64_t now = __timer.now_ms();
+	uint64_t now = _timer.now_ms();
 	for (size_t i = 0; i < _taskCount; ++i) {
 		auto& task = _userTaskPool[i];
-		if (task._state == Task::State::SLEEPING) {
-			if (now >= task.active_cycle) {
-				task._state = Task::State::READY;
+		if (task._state == TaskBase::State::SLEEPING) {
+			if (now >= task.active_ms) {
+				task._state = TaskBase::State::READY;
 			}
 		}
 	}	
 }
 
-size_t TaskManager::findNextReadyTask(){
-	for (size_t i = 0; i < _taskCount; ++i) {
-		size_t idx = (_last_scheduled_id + 1 + i) % _taskCount;
-		if (_userTaskPool[idx]._state == Task::State::READY) {
+void TaskManager::initKernelTasks(){
+	addTask(TimerUpdata());
+}
+
+void TaskManager::runKernelTasks(){
+	for (auto& task : _kernrlTaskPool) {
+		if (task._state == TaskBase::State::READY) {
+			task.run();
+		}
+		else if (task._state == TaskBase::State::SLEEPING) {
+			if (_timer.now_ms() >= task.active_ms) {
+				task._state = TaskBase::State::READY;
+			}
+		}
+	}
+}
+
+uint64_t TaskManager::findNextReadyTask(){
+	for (uint64_t i = 0; i < _taskCount; ++i) {
+		uint64_t idx = (_last_scheduled_id + i) % _taskCount;
+		if (_userTaskPool[idx]._state == TaskBase::State::READY) {
 			_last_scheduled_id = idx;
 			return idx;
 		}
 	}
-	return SIZE_MAX;
-}
-
-void TaskManager::task_entry_trampoline() {
-	UserTask& current = *g_task_manager.getCurrentTask();
-	current.run();
-	current._state = Task::State::FINISHED;
-
-
-	g_task_manager.yield(true, UINT32_MAX);
-}
-
-void UserTask::start(){
-	void* stack_top_addr = _context.stack_data + TASK_STACK_SIZE;
-	g_task_manager.setupContext(&_context, stack_top_addr);
-
-	_state = State::READY;
+	return UINT64_MAX;
 }
 
 }

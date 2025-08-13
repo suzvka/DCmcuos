@@ -5,27 +5,28 @@
 
 #include "API.h"
 #include "CallbackManager.h"
+extern GetUint32Callback getTime;
 
-static Uint8Callback setinputPU_Pin;
-static Uint8Callback setinputPD_Pin;
-static Uint8Callback setinputF_Pin;
-static Uint8Callback setinputA_Pin;
+extern Uint8Callback setinputPU_Pin;
+extern Uint8Callback setinputPD_Pin;
+extern Uint8Callback setinputF_Pin;
+extern Uint8Callback setinputA_Pin;
 
-static Uint8Callback setoutputPP_Pin;
-static Uint8Callback setoutputOD_Pin;
-static Uint8Callback setoutputPPA_Pin;
-static Uint8Callback setoutputODA_Pin;
+extern Uint8Callback setoutputPP_Pin;
+extern Uint8Callback setoutputOD_Pin;
+extern Uint8Callback setoutputPPA_Pin;
+extern Uint8Callback setoutputODA_Pin;
 
-static Uint8Callback setI2C_SDA;
-static Uint8Callback setI2C_SCL;
+extern Uint8Callback setI2C_SDA;
+extern Uint8Callback setI2C_SCL;
 
-static Uint8Callback setSWD_DIO;
-static Uint8Callback setSWD_CLK;
+extern Uint8Callback setSWD_DIO;
+extern Uint8Callback setSWD_CLK;
 
-static TaskAgrntCallback triggerSWI;
+extern TaskAgrntCallback triggerSWI;
 
-static ProcessCallback OFF_Interrupts;
-static ProcessCallback ON_Interrupts;
+extern ProcessCallback OFF_Interrupts;
+extern ProcessCallback ON_Interrupts;
 
 bool addInputPin(int pin, int mode);
 bool addOutputPin(int pin, int mode);

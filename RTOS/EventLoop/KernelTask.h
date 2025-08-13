@@ -6,9 +6,6 @@ namespace RTOS{
 	public: TimerUpdata();
 	};
 
-	// ÖÓ°Ú»Øµ÷
-	class PendulumCallback : public KernelTask {
-	public: PendulumCallback();
-	};
+	
 
 }

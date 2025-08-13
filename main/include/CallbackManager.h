@@ -43,6 +43,42 @@ public:
 
 };
 
+class GetUint32Callback : BaseCallback {
+private:
+	uint32_t(*callback_ptr)(void);
+
+public:
+	GetUint32Callback() : callback_ptr(nullptr) {}
+	GetUint32Callback(uint32_t(*func)(void)) : callback_ptr(func) {}
+
+	GetUint32Callback& operator=(uint32_t(*func)(void)) {
+		set(func);
+		return *this;
+	}
+
+	uint32_t operator()() {
+		if (callback_ptr) {
+			callback_ptr();
+		}
+		else {
+			return 0;
+		}
+	}
+
+	void set(uint32_t(*func)(void)) {
+		callback_ptr = func;
+	}
+
+	bool has() const {
+		return callback_ptr != nullptr;
+	}
+
+	uint32_t(*get_callback_ptr() const)(void) {
+		return callback_ptr;
+	}
+
+};
+
 class ProcessCallback : public BaseCallback {
 private:
     void(*callback_ptr)();

@@ -8,7 +8,4 @@
 #define SYSTEM_STACK_SIZE 256
 
 // 定时器数量
-#define MAX_TIMERS 3
-
-// 钟摆回调数量
-#define MAX_PENDULUM_CALLBACKS 6
+#define MAX_TIMERS MAX_TASKS + 1
