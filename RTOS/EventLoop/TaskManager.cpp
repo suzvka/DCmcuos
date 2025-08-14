@@ -84,8 +84,8 @@ bool TaskManager::addTask(KernelTask&& task){
 	return true;
 }
 
-bool TaskManager::addTask(ProcessCallback&& task) {
-	return addTask(UserTask(task));
+bool TaskManager::addTask(ProcessCallback&& task, uint16_t run_interval_ms) {
+	return addTask(UserTask(task, run_interval_ms));
 }
 
 bool TaskManager::removeTask(size_t task_id){
@@ -136,15 +136,13 @@ uint64_t TaskManager::getRunningFreq() const {
 }
 
 void TaskManager::task_entry_trampoline() {
-    while (runStatus == RunStatus::Running) {
-        UserTask& current = *getInstance()->getCurrentTask();
+	while (runStatus == RunStatus::Running) {
+		UserTask& current = *getInstance()->getCurrentTask();
 
-        current.run();
+		current.run();
 
-        current._state = TaskBase::State::READY;
-
-        getInstance()->yield(false, current.run_interval_ms);
-    }
+		getInstance()->yield(current.run_interval_ms > 0, current.run_interval_ms);
+	}
 }
 
 void TaskManager::yield(bool is_sleeping, uint32_t wake_up_time){

@@ -30,16 +30,16 @@ void simulated_switch_context(void** from_ctx_sp_ptr, const void* to_ctx_sp) {
 
 
 void testTask_A() {
-	sleep(1000);
+	std::cout << "任务 A 开始.---------------------" << std::endl;
 }
 
 void testTask_B() {
-	sleep(251);
+	std::cout << "任务 B 开始.--------" << std::endl;
 }
 
 void testTask_C() {
 	sleep(500);
-	std::cout << "Running Freq: " << RunningFreq() << " Hz" << std::endl;
+	std::cout << "运行频率: " << RunningFreq() << " Hz" << std::endl;
 }
 
 uint32_t last_us = 0;
@@ -61,9 +61,9 @@ int main(int, char) { ConvertThreadToFiber(nullptr);
 	__setupContext(simulated_setup_context);
 	__switchContext(simulated_switch_context);
 
-	AddTask((testTask_A));
-	AddTask((testTask_B));
-	AddTask((testTask_C));
+	AddTask(testTask_A, 1000);
+	AddTask(testTask_B, 250);
+	AddTask(testTask_C);
 
 	std::cout << "\n--- Starting Scheduler Simulation ---\n" << std::endl;
 

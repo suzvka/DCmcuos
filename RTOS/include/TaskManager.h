@@ -27,7 +27,7 @@ namespace RTOS {
 
 		bool addTask(KernelTask&& task);
 
-		bool addTask(ProcessCallback&& task);
+		bool addTask(ProcessCallback&& task, uint16_t run_interval_ms = 0);
 
 		bool removeTask(size_t task_id);
 

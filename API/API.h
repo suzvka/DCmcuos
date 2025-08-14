@@ -15,7 +15,7 @@ uint64_t RunningFreq();
 // 任务管理
 
 // 添加任务
-void AddTask(void(*task)());
+void AddTask(void(*task)(), uint16_t run_interval_ms = 0);
 
 
 
