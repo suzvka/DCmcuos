@@ -20,8 +20,7 @@ extern Uint8Callback setoutputODA_Pin;
 extern Uint8Callback setI2C_SDA;
 extern Uint8Callback setI2C_SCL;
 
-extern Uint8Callback setSWD_DIO;
-extern Uint8Callback setSWD_CLK;
+extern Uint8Callback setSystemClock;
 
 extern TaskAgrntCallback triggerSWI;
 

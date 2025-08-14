@@ -10,6 +10,7 @@ namespace RTOS {
 	enum class RunStatus : uint8_t {
 		Stop,
 		Running,
+		Paused,
 		Ready,
 		Error
 	};
@@ -20,7 +21,7 @@ namespace RTOS {
 	public:
 		static TaskManager* getInstance();
 
-		static bool checkInit();
+		bool checkInit();
 
 		bool addTask(UserTask&& task);
 
@@ -34,11 +35,15 @@ namespace RTOS {
 
 		void yield(bool is_sleeping, uint32_t wake_up_time = 0);
 
+		uint64_t getRunningFreq() const;
+
+		void idle();
+
 		UserTask* getCurrentTask();
 
-		static void setSetupContext(void (*func)(UserTask::Context* ctx, void* stack_top, void* entry_point));
+		void setSetupContext(void (*func)(UserTask::Context* ctx, void* stack_top, void* entry_point));
 
-		static void setSwitchContext(void(*func)(void** from_ctx_sp_ptr, const void* to_ctx));
+		void setSwitchContext(void(*func)(void** from_ctx_sp_ptr, const void* to_ctx));
 
 	private:
 		typedef struct {
@@ -56,6 +61,8 @@ namespace RTOS {
 
 		void initUserTasks();
 
+		void loopEnd();
+
 		uint64_t findNextReadyTask();
 
 		static void task_entry_trampoline();
@@ -65,6 +72,10 @@ namespace RTOS {
 
 		etl::vector<UserTask, MAX_TASKS> _userTaskPool;
 		etl::vector<KernelTask, 4> _kernrlTaskPool;
+
+		uint64_t _loop_count = 0;
+		uint64_t _last_freq_calc_time_ms = 0;
+		uint64_t _running_freq_hz = 0;
 
 		uint64_t _taskCount = 0;
 		uint64_t _nowTaskID = 0;

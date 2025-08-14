@@ -1,18 +1,32 @@
-file(GLOB_RECURSE _src "*.c" "*.cpp")
-file(GLOB_RECURSE _src_h "*.h")
+# 递归搜集源码
+file(GLOB_RECURSE _src CONFIGURE_DEPENDS
+    "*.c"
+    "*.cpp"
+)
+
+# 递归搜集头文件
+file(GLOB_RECURSE _headers CONFIGURE_DEPENDS
+    "*.h"
+    "*.hpp"
+    "*.hxx"
+)
+
+# 从头文件提取所在目录并去重
+set(_include_dirs "${CMAKE_CURRENT_SOURCE_DIR}")
+foreach(h IN LISTS _headers)
+    get_filename_component(dir "${h}" DIRECTORY)
+    list(APPEND _include_dirs "${dir}")
+endforeach()
+list(REMOVE_DUPLICATES _include_dirs)
 
 DCmcuos_add_library(RTOS
     SOURCES ${_src}
     LINKS etl::etl API main
     INCLUDE
-    # 递归链接全部
-    ${_src_h}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/EventLoop
+        ${_include_dirs}
 )
 
 DCmcuos_add_executable(test_loop
-    SOURCES "test.cpp"
+    SOURCES test.cpp
     LINKS RTOS
 )

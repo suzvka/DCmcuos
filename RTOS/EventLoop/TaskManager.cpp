@@ -2,8 +2,8 @@
 #include "API.h"
 #include "KernelTask.h"
 
-namespace RTOS{
-void (*TaskManager::_setupContext)(UserTask::Context* ctx, void* stack_top, void* entry_point) = nullptr;
+namespace RTOS {
+void (*TaskManager::_setupContext)(UserTask::Context* ctx, void* initial_stack_top, void* entry_point) = nullptr;
 void (*TaskManager::_switchContext)(void** from_ctx_sp_ptr, const void* to_ctx) = nullptr;
 RunStatus runStatus = RunStatus::Stop;
 
@@ -12,13 +12,14 @@ void TaskManager::run() {
 
 	initKernelTasks();
 	initUserTasks();
+	// if (!checkInit()) runStatus = RunStatus::Error;
 
-	while (runStatus == RunStatus::Running) {
+	while (runStatus == RunStatus::Running || runStatus == RunStatus::Paused) {
 		checkSleepingTasks();
 		runKernelTasks();
 
 		size_t next_task_idx = findNextReadyTask();
-		if (next_task_idx < _taskCount) {
+		if (next_task_idx < _taskCount && runStatus == RunStatus::Running) {
 			_nowTaskID = next_task_idx;
 
 			UserTask& current = _userTaskPool[_nowTaskID];
@@ -30,13 +31,16 @@ void TaskManager::run() {
 			);
 		}
 		else {
+			//idle();
 			// 没有就绪任务，可以进入低功耗模式
 			// WFI(); // 例如：等待中断
 		}
+
+		loopEnd();
 	}
 }
 
-void RTOS::TaskManager::setSetupContext(void (*func)(UserTask::Context* ctx, void* stack_top, void* entry_point)) {
+void RTOS::TaskManager::setSetupContext(void (*func)(UserTask::Context* ctx, void* initial_stack_top, void* entry_point)) {
 	_setupContext = func;
 }
 
@@ -65,8 +69,8 @@ bool TaskManager::addTask(UserTask&& task) {
 	auto& t = _userTaskPool.back();
 	t.start();
 
-	void* stack_top_addr = t._context.stack_data + TASK_STACK_SIZE;
-	setupContext(&t._context, stack_top_addr);
+	void* initial_stack_top_addr = t._context.stack_data + TASK_STACK_SIZE;
+	setupContext(&t._context, initial_stack_top_addr);
 
 	_taskCount++;
 	return true;
@@ -94,12 +98,12 @@ bool TaskManager::removeTask(size_t task_id){
 	return true;
 }
 
-void RTOS::TaskManager::setupContext(UserTask::Context* ctx, void* stack_top) {
+void RTOS::TaskManager::setupContext(UserTask::Context* ctx, void* initial_stack_top) {
 	if (_setupContext) {
 		InterruptLock lock;
 		_setupContext(
 			ctx, 
-			stack_top, 
+			initial_stack_top, 
 			(void*)task_entry_trampoline
 		);
 	}
@@ -109,10 +113,26 @@ void TaskManager::initUserTasks() {
 	for (auto& task : _userTaskPool) {
 		if (!_setupContext) continue;
 		if (task.getContext().stack_top == nullptr) {
-			void* stack_top_addr = task._context.stack_data + TASK_STACK_SIZE;
-			setupContext(&task._context, stack_top_addr);
+			void* initial_stack_top_addr = task._context.stack_data + TASK_STACK_SIZE;
+			setupContext(&task._context, initial_stack_top_addr);
 		}
 	}
+}
+
+void TaskManager::loopEnd() {
+	_loop_count++;
+	uint64_t now = _timer.now_ms();
+	uint64_t elapsed = now - _last_freq_calc_time_ms;
+
+	if (elapsed >= 100) {
+		_running_freq_hz = _loop_count * 1000 / elapsed;
+		_loop_count = 0;
+		_last_freq_calc_time_ms = now;
+	}
+}
+
+uint64_t TaskManager::getRunningFreq() const {
+	return _running_freq_hz;
 }
 
 void TaskManager::task_entry_trampoline() {
@@ -123,7 +143,7 @@ void TaskManager::task_entry_trampoline() {
 
         current._state = TaskBase::State::READY;
 
-        getInstance()->yield(false);
+        getInstance()->yield(false, current.run_interval_ms);
     }
 }
 
@@ -170,6 +190,7 @@ void TaskManager::runKernelTasks(){
 	for (auto& task : _kernrlTaskPool) {
 		if (task._state == TaskBase::State::READY) {
 			task.run();
+			task.active_ms += task.run_interval_ms;
 		}
 		else if (task._state == TaskBase::State::SLEEPING) {
 			if (_timer.now_ms() >= task.active_ms) {

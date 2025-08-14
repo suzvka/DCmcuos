@@ -2,7 +2,7 @@
 #include "TaskManager.h"
 
 namespace RTOS {
-	UserTask::UserTask(ProcessCallback task_func) : Task<UserTask>(task_func) {
+	UserTask::UserTask(ProcessCallback task_func, uint16_t run_interval_ms) : Task<UserTask>(task_func, run_interval_ms) {
 		for (int i = 0; i < TASK_STACK_SIZE - 16; ++i) {
 			_context.stack_data[i] = 0xa5;
 		}

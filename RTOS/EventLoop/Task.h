@@ -17,15 +17,20 @@ namespace RTOS {
 		virtual ~TaskBase() = default;
 		virtual void run() = 0;
 
-		State _state = State::UNINITIALIZED;
 		uint32_t active_ms = 0;
+		uint16_t run_interval_ms = 0;
+		volatile State _state = State::UNINITIALIZED;
 	};
 
 	template <typename Derived>
 	class Task : public TaskBase {
 	public:
-		Task(ProcessCallback task_func) : _task_func(task_func) {}
-		Task(void(*task_func)()) : _task_func(task_func) {}
+		Task(ProcessCallback task_func, uint16_t run_interval_ms) : _task_func(task_func){
+			this->run_interval_ms = run_interval_ms;
+		}
+		Task(void(*task_func)(), uint16_t run_interval_ms = 0) : _task_func(task_func) {
+			this->run_interval_ms = run_interval_ms;
+		}
 
 		void start() {
 			static_cast<Derived*>(this)->start_impl();
@@ -41,7 +46,7 @@ namespace RTOS {
 	// 用户任务
 	class UserTask : public Task<UserTask> {
 	public:
-		UserTask(ProcessCallback task_func);
+		UserTask(ProcessCallback task_func, uint16_t run_interval_ms = 0);
 
 		typedef struct {
 			void* stack_top;
@@ -62,7 +67,7 @@ namespace RTOS {
 	// 内核任务
 	class KernelTask : public Task<KernelTask> {
 	public:
-		KernelTask(ProcessCallback task_func) : Task<KernelTask>(task_func) {}
+		KernelTask(ProcessCallback task_func, uint16_t run_interval_ms = 0) : Task<KernelTask>(task_func, run_interval_ms) {}
 
 		void start_impl() {
 			_state = State::READY;

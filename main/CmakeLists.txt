@@ -2,7 +2,7 @@ file(GLOB_RECURSE _src "*.c" "*.cpp")
 file(GLOB_RECURSE _src_h "*.h")
 
 DCmcuos_add_library(main SOURCES ${_src}
-    LINKS etl::etl API
+    LINKS etl::etl API RTOS
     INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include

@@ -15,8 +15,7 @@ Uint8Callback setoutputODA_Pin = nullptr;
 Uint8Callback setI2C_SDA = nullptr;
 Uint8Callback setI2C_SCL = nullptr;
 
-Uint8Callback setSWD_DIO = nullptr;
-Uint8Callback setSWD_CLK = nullptr;
+Uint8Callback setSystemClock = nullptr;
 
 TaskAgrntCallback triggerSWI = nullptr;
 

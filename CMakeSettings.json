@@ -22,7 +22,24 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "cmakeToolchain": "${projectDir}\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake",
-      "inheritEnvironments": [ "msvc_x64_x64" ]
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "DC_MCU_PIVOT_BUILD_EXAMPLES",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "CMAKE_RUNTIME_OUTPUT_DIRECTORY",
+          "value": "${buildRoot}/bin",
+          "type": "PATH"
+        },
+        {
+          "name": "CMAKE_PDB_OUTPUT_DIRECTORY",
+          "value": "${buildRoot}/bin",
+          "type": "PATH"
+        }
+      ]
     },
     {
       "name": "arm-Release",

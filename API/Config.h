@@ -3,9 +3,12 @@
 
 #define MAX_TASKS 3
 #define BIT_WIDTH 64
-#define Control_Frequency_Hz 1000
-#define TASK_STACK_SIZE 400
+#define CONTROL_FREQ_Hz 1000
+#define TASK_STACK_SIZE 320
 #define SYSTEM_STACK_SIZE 256
 
-// 定时器数量
 #define MAX_TIMERS MAX_TASKS + 1
+
+#define MAX_CPU_FREQ_Hz 1000000
+#define MIN_CPU_FREQ_PERCENT 10
+#define MAX_GPIO_PINS 20

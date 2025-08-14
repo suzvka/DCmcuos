@@ -64,6 +64,10 @@ void __I2C_SCL(void(*callback)(uint8_t));
 //=========================================================
 // 系统配置
 
+// 设置主频
+// @param uint32 freq 主频 kHz
+void __setSystemClock(void(*callback)(uint8_t));
+
 // 软件中断回调
 // 框架需要软件中断时调用这个函数
 // 框架会注入一个 void foo() 来执行自定义过程
@@ -90,6 +94,19 @@ void __disableInterrupts(void(*callback)(void));
 
 // 启用中断
 void __enableInterrupts(void(*callback)(void));
+
+// 注册任务上下文初始化函数
+// @param callback
+//   - arg1: void** ctx_sp_ptr, 用于保存初始化后栈顶指针的地址
+//   - arg2: void* initial_stack_top, 任务栈的最高地址（初始栈顶）
+//   - arg3: void* entry_point, 任务入口函数指针
+void __setupContext(void(*callback)(void**, void*, void*));
+
+// 注册任务上下文切换函数
+// @param callback
+//   - arg1: void** from_ctx_sp_ptr, 保存当前任务栈顶指针的地址
+//   - arg2: const void* to_ctx_sp, 要切换到的任务的栈顶指针
+void __switchContext(void(*callback)(void**, const void*));
 
 #ifdef __cplusplus
 }

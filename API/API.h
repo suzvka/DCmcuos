@@ -7,13 +7,15 @@ extern "C" {
 
 
 
-void init();
+void StartRun();
+void sleep(uint32_t ms);
+uint64_t RunningFreq();
 
 //=========================================================
 // 任务管理
 
 // 添加任务
-void addTask(void(*task)());
+void AddTask(void(*task)());
 
 
 
