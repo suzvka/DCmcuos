@@ -1,18 +1,18 @@
 class BasePin {
 public:
 	virtual ~BasePin() = default;
-	// 获取引脚编号
+	// 鑾峰彇寮曡剼缂栧彿
 	virtual int getPinNumber() const = 0;
 };
 
-// 数字输入
+// 鏁板瓧杈撳叆
 class DigitalInputPin : public BasePin {
 };
 
-// 模拟输入
+// 妯℃嫙杈撳叆
 class AnalogInputPin : public BasePin {
 };
 
-// 数字输出
+// 鏁板瓧杈撳嚭
 class DigitalOutputPin : public BasePin {
 };

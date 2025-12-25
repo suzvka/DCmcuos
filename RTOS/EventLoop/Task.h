@@ -43,7 +43,7 @@ namespace RTOS {
 		ProcessCallback _task_func;
 	};
 
-	// 用户任务
+	// 鐢ㄦ埛浠诲姟l
 	class UserTask : public Task<UserTask> {
 	public:
 		UserTask(ProcessCallback task_func, uint16_t run_interval_ms = 0);
@@ -64,7 +64,7 @@ namespace RTOS {
 		Context _context;
 	};
 
-	// 内核任务
+	// 鍐呮牳浠诲姟
 	class KernelTask : public Task<KernelTask> {
 	public:
 		KernelTask(ProcessCallback task_func, uint16_t run_interval_ms = 0) : Task<KernelTask>(task_func, run_interval_ms) {}
